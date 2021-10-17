@@ -1,0 +1,9 @@
+official vial lighting demo
+lighting.py
+
+customLight is the python led remote control webserver
+run with python customLight.py
+
+example apps are used with `npm run clock`  or `npm run timer`
+
+currently used for twitch alerts and a background clock on my 6 key macropad

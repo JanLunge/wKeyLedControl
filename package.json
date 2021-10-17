@@ -1,0 +1,36 @@
+{
+    "name": "update-progress",
+    "version": "1.0.0",
+    "description": "A simple websocket server for collaboration.",
+    "main": "updater.js",
+    "scripts": {
+        "clock": "nodemon ./node_modules/@babel/node/bin/babel-node.js updater.js",
+        "timer": "nodemon ./node_modules/@babel/node/bin/babel-node.js pomodoro.js"
+    },
+    "babel": {
+        "presets": [
+            [
+                "@babel/preset-env",
+                {
+                    "useBuiltIns": "entry"
+                }
+            ]
+        ],
+        "comments": false,
+        "compact": true
+    },
+    "dependencies": {
+        "@babel/core": "^7.2.0",
+        "@babel/node": "^7.2.0",
+        "@babel/plugin-transform-runtime": "^7.2.0",
+        "@babel/preset-env": "^7.2.0",
+        "@babel/runtime": "^7.2.0",
+        "bcrypt": "^5.0.0",
+        "core-js": "2",
+        "cors": "^2.8.5",
+        "dotenv": "^8.2.0",
+        "express": "^4.17.1",
+        "nodemon": "^2.0.5",
+        "ulid": "^2.3.0"
+    }
+}

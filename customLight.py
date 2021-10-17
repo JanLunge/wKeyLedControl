@@ -1,3 +1,13 @@
+import colorsys
+from datetime import datetime, timedelta
+from ulid import ULID
+from global_hotkeys import *
+from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+from comtypes import CLSCTX_ALL
+from ctypes import cast, POINTER
+import win32api
+from aiohttp import web
+import asyncio
 import sys
 import struct
 import random
@@ -6,22 +16,13 @@ import time
 import datetime
 import json
 hostName = "localhost"
-serverPort = 8080
+serverPort = 8081
 if sys.platform.startswith("linux"):
     import hidraw as hid
 else:
     import hid
 
-import asyncio
-from aiohttp import web
 
-import win32api
-from ctypes import cast, POINTER
-from comtypes import CLSCTX_ALL
-from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-from global_hotkeys import *
-from ulid import ULID
-from datetime import datetime, timedelta
 MSG_LEN = 32
 VIAL_SERIAL_NUMBER_MAGIC = "vial:f64c2b3c"
 
@@ -161,7 +162,6 @@ class VialRGBLed:
         self.col = col
         self.keycode = keycode
 
-
         self.h = self.s = self.v = 0
 
     def __repr__(self):
@@ -205,7 +205,7 @@ def is_rawhid(desc):
         return False
 
     try:
-        dev = hid.Device(path= desc["path"])
+        dev = hid.Device(path=desc["path"])
     except OSError as e:
         return False
 
@@ -264,15 +264,18 @@ def find_vial_devices():
 def vialrgb_get_modes(dev):
     """ Retrieve list of supported modes from the keyboard """
 
-    data = hid_send(dev, struct.pack("BB", CMD_VIA_LIGHTING_GET_VALUE, VIALRGB_GET_INFO), retries=20)[2:]
+    data = hid_send(dev, struct.pack(
+        "BB", CMD_VIA_LIGHTING_GET_VALUE, VIALRGB_GET_INFO), retries=20)[2:]
     rgb_version = data[0] | (data[1] << 8)
     if rgb_version != 1:
-        raise RuntimeError("Unsupported VialRGB protocol ({})".format(rgb_version))
+        raise RuntimeError(
+            "Unsupported VialRGB protocol ({})".format(rgb_version))
 
     rgb_supported_effects = {0}
     max_effect = 0
     while max_effect < 0xFFFF:
-        data = hid_send(dev, struct.pack("<BBH", CMD_VIA_LIGHTING_GET_VALUE, VIALRGB_GET_SUPPORTED, max_effect))[2:]
+        data = hid_send(dev, struct.pack(
+            "<BBH", CMD_VIA_LIGHTING_GET_VALUE, VIALRGB_GET_SUPPORTED, max_effect))[2:]
         for x in range(0, len(data), 2):
             value = int.from_bytes(data[x:x+2], byteorder="little")
             if value != 0xFFFF:
@@ -284,12 +287,14 @@ def vialrgb_get_modes(dev):
 def vialrgb_get_leds(dev):
     """ Retrieve RGB LEDs positions and flags from the keyboard """
 
-    data = hid_send(dev, struct.pack("BB", CMD_VIA_LIGHTING_GET_VALUE, VIALRGB_GET_NUMBER_LEDS))
+    data = hid_send(dev, struct.pack(
+        "BB", CMD_VIA_LIGHTING_GET_VALUE, VIALRGB_GET_NUMBER_LEDS))
     num_leds = struct.unpack("<H", data[2:4])[0]
 
     leds = []
     for idx in range(num_leds):
-        data = hid_send(dev, struct.pack("<BBH", CMD_VIA_LIGHTING_GET_VALUE, VIALRGB_GET_LED_INFO, idx))
+        data = hid_send(dev, struct.pack(
+            "<BBH", CMD_VIA_LIGHTING_GET_VALUE, VIALRGB_GET_LED_INFO, idx))
         x, y, flags, row, col = struct.unpack("BBBBB", data[2:7])
         if row == 0xFF:
             row = None
@@ -298,7 +303,8 @@ def vialrgb_get_leds(dev):
         keycode = None
         # retrieve which keycode it's mapped to on first layer
         if row is not None and col is not None:
-            data = hid_send(dev, struct.pack("BBBB", CMD_VIA_DYNAMIC_KEYMAP_GET_KEYCODE, 0, row, col))
+            data = hid_send(dev, struct.pack(
+                "BBBB", CMD_VIA_DYNAMIC_KEYMAP_GET_KEYCODE, 0, row, col))
             keycode = int.from_bytes(data[4:6], byteorder="big")
         leds.append(VialRGBLed(idx, x, y, flags, row, col, keycode))
     return leds
@@ -308,7 +314,7 @@ def vialrgb_set_mode(dev, mode):
     """ Set mode (note this specifically should be used with direct, it ignores speed and hsv) """
 
     hid_send(dev, struct.pack("BBHBBBB", CMD_VIA_LIGHTING_SET_VALUE, VIALRGB_SET_MODE,
-                  mode, 128, 128, 128, 128), retries=20)
+                              mode, 128, 128, 128, 128), retries=20)
 
 
 def vialrgb_send_leds(dev, leds):
@@ -329,7 +335,8 @@ def vialrgb_send_leds(dev, leds):
         for led in leds_to_send:
             buffer += [led.h, led.s, led.v]
 
-        payload = struct.pack("BBHB", CMD_VIA_LIGHTING_SET_VALUE, VIALRGB_DIRECT_FASTSET, start_led, len(leds_to_send))
+        payload = struct.pack("BBHB", CMD_VIA_LIGHTING_SET_VALUE,
+                              VIALRGB_DIRECT_FASTSET, start_led, len(leds_to_send))
         payload += b"".join(x.to_bytes(1, byteorder="little") for x in buffer)
 
         hid_send(dev, payload)
@@ -357,7 +364,7 @@ def update_leds(leds):
             # for underglow, set them all to a static color
             led.h = int(t) % 256
         # set the led status here with time etc
-        
+
         led.s = 255
         led.v = 0
 
@@ -372,10 +379,10 @@ def update_leds(leds):
             notification_done = now + datetime.timedelta(seconds=15)
             if now < notification_done:
                 speed = 0.05
-                value = int(t*speed)%2
+                value = int(t*speed) % 2
                 sin = int(math.sin(value)*128+128)
-                print(value,sin)
-                led.v =  254 if value == 1 else 50
+                print(value, sin)
+                led.v = 254 if value == 1 else 50
                 led.h = 0
 
 
@@ -384,15 +391,16 @@ def main():
     if desc is None:
         print("failed to find any VialRGB devices!")
         return 1
-    print("Trying {} {}".format(desc["manufacturer_string"], desc["product_string"]))
+    print("Trying {} {}".format(
+        desc["manufacturer_string"], desc["product_string"]))
 
     global dev
     global leds
     global ledstack
     global ledstate
     global animated_mode
-    ledstack = [] # stack of all widgets on the display
-    ledstate = [] # state of all leds on the display
+    ledstack = []  # stack of all widgets on the display
+    ledstate = []  # state of all leds on the display
     animated_mode = False
 
     dev = hid.Device(path=desc["path"])
@@ -417,7 +425,6 @@ def main():
 
         # update_leds(leds)
         vialrgb_send_leds(dev, leds)
-    
 
     def update_volume():
         global animated_mode
@@ -432,20 +439,20 @@ def main():
                 return
         if not has_volume_widget:
             ledstack.append({
-                "id": "01FGCZT88GZB61P13ANXR03131", 
-                "indexes": [0,1,2,3,4,5],
-                "config":{ 
-                    "date_timeout": date_timeout, 
+                "id": "01FGCZT88GZB61P13ANXR03131",
+                "indexes": [0, 1, 2, 3, 4, 5],
+                "config": {
+                    "date_timeout": date_timeout,
                     "color": {"h": 255, "s": 0, "v": 255}
-                    }, 
+                },
                 "type": "volume"
-                })
-        asyncio.run(small_animation_loop()) 
+            })
+        asyncio.run(small_animation_loop())
 
     async def small_animation_loop():
         global animated_mode
         while animated_mode:
-            for idx,widget in enumerate(ledstack):
+            for idx, widget in enumerate(ledstack):
                 if widget["type"] == "volume":
                     now = datetime.now()
                     then = widget["config"]["date_timeout"]
@@ -453,37 +460,39 @@ def main():
                         animated_mode = False
                         del ledstack[idx]
             asyncio.create_task(update_display())
-            await asyncio.sleep(1/60) 
-
-
+            await asyncio.sleep(1/60)
 
     # These take the format of [<key list>, <keydown handler callback>, <keyup handler callback>]
     bindings = [
         #[['volume_Down'], lower_volume, None],
-        [[ "volume_up"], update_volume, None],
+        [["volume_up"], update_volume, None],
     ]
     register_hotkeys(bindings)
     start_checking_hotkeys()
-
 
     webserver = WebServer()
 
     webserver.run()
 
 
-
 class WebServer:
     def __init__(self, **kwargs: dict):
         self.app = web.Application()
         self.host = 'localhost'
-        self.port = 8080
+        self.port = 8081
 
     async def initializer(self) -> web.Application:
         # Setup routes and handlers
         self.app.router.add_get('/notification', self.get_notification_handler)
         self.app.router.add_get('/volume', self.get_volume_handler)
-        
+        self.app.router.add_get('/widgets', self.get_widget_stack)
+        self.app.router.add_post('/widget', self.post_update_widget)
+        self.app.router.add_post('/add_widget', self.post_add_widget)
+        self.app.router.add_post('/delete_widget', self.post_delete_widget)
+        self.app.router.add_get('/rerender', self.get_rerender)
+
         return self.app
+
     def run(self):
         web.run_app(self.initializer(), host=self.host, port=self.port)
 
@@ -491,43 +500,137 @@ class WebServer:
         data = await request.json()
         indexes = data["leds"]
         color = data["color"]
-        timeout = data["timeout"] 
-        asyncio.create_task(set_notification_led(indexes=indexes,  timeout=timeout, color=color))
-    
-    async def animation_loop(self):
-        print("animaitin")
-        await asyncio.sleep(5)  
+        timeout = data["timeout"]
+        asyncio.create_task(set_notification_led(
+            indexes=indexes,  timeout=timeout, color=color))
+
+    async def get_widget_stack(self, request: web.Request) -> web.Response:
+        return web.json_response(ledstack)
+
+    async def post_delete_widget(self, request: web.Request) -> web.Response:
+        new_widget_state = await request.json()
+        for idx, widget in enumerate(ledstack):
+            if widget.get("id") == new_widget_state.get("id"):
+                del ledstack[idx]
+
+        asyncio.create_task(update_display())
+        return web.json_response(ledstack)
+
+    async def post_update_widget(self, request: web.Request) -> web.Response:
+        new_widget_state = await request.json()
+        for widget in ledstack:
+            if widget.get("id") == new_widget_state.get("id"):
+                print(widget)
+                widget["config"] = new_widget_state["config"]
+                widget["indexes"] = new_widget_state["indexes"]
+
+        asyncio.create_task(update_display())
+        return web.json_response(ledstack)
+
+    async def post_add_widget(self, request: web.Request) -> web.Response:
+        widget = await request.json()
+        hasId = False
+        for widget1 in ledstack:
+            if widget1.get("id") == widget.get("id"):
+                hasId = True
+        if not hasId:
+            ledstack.append(widget)
+
+        asyncio.create_task(update_display())
+        return web.json_response(ledstack)
+
+    async def get_rerender(self, request: web.Request) -> web.Response:
+        asyncio.create_task(update_display())
+        return web.json_response(ledstack)
 
     async def get_notification_handler(self, request: web.Request) -> web.Response:
         color = {
-            "h":int(request.query["h"]),
-            "s":int(request.query["s"]),
-            "v":int(request.query["v"])
-            }
-        indexes = list(map(int,request.query["indexes"].split(',')))
-        timeout = int(request.query["timeout"])
-        ulid = ULID()
-        ledstack.append({"id": str(ulid) , "indexes": indexes, "config":{ "timeout": timeout, "color": color}, "type": "notification"})
+            "h": int(request.query["h"]),
+            "s": int(request.query["s"]),
+            "v": int(request.query["v"])
+        }
+
+        twitch = request.query.get("twitch")
+        if twitch:
+            twitch = twitch.split(" ")
+            print(twitch)
+            # do something with the twitch string
+            if "red" in twitch:
+                color["h"] = 0
+            elif "blue" in twitch:
+                color["h"] = 160
+            elif "green" in twitch:
+                color["h"] = 80
+            elif "hsl" in twitch:
+                # hsl mode
+                color["h"] = clamp(int(twitch[1])/360*255)
+                color["s"] = clamp(int(twitch[2])/100*255)
+                color["v"] = clamp(int(twitch[3])/100*255)
+            elif "hex" in twitch:
+                if len(twitch[1]) == 3:
+                    hex_color = {
+                        "r": int(twitch[1][0], 16)/15,
+                        "g": int(twitch[1][1], 16)/15,
+                        "b": int(twitch[1][2], 16)/15,
+                    }
+                elif len(twitch[1]) == 6:
+                    hex_color = {
+                        "r": int(twitch[1][0] + twitch[1][1], 16)/15,
+                        "g": int(twitch[1][2] + twitch[1][3], 16)/15,
+                        "b": int(twitch[1][4] + twitch[1][5], 16)/15,
+                    }
+                else:
+                    print("wrong hex")
+                    return
+
+                hsl = colorsys.rgb_to_hsv(
+                    hex_color["r"], hex_color["g"], hex_color["b"])
+                print(hsl)
+                color["h"] = clamp(hsl[0]*255)
+                color["s"] = clamp(hsl[1]*255)
+                color["v"] = clamp(hsl[2]*255)
+
+        indexes = list(map(int, request.query["indexes"].split(',')))
+        timeout = int(request.query.get("timeout", 0))
+        update_id = request.query.get("id")
+        ulid = ""
+        if not update_id:
+            ulid = ULID()
+            ledstack.append({"id": str(ulid), "indexes": indexes, "config": {
+                            "timeout": timeout, "color": color}, "type": "notification"})
+        else:
+            print("updating the widget")
+            for widget in ledstack:
+                if widget.get("id") == update_id:
+                    print(widget)
+                    ulid = widget.get("id")
+                    # update here
+                    widget["config"]["color"] = color
+
         asyncio.create_task(update_display())
-       
+        data = {'success': True, "id": str(ulid)}
+        return web.json_response(data)
+
     async def get_volume_handler(self, request: web.Request) -> web.Response:
         incr = request.query["incr"]
         print("volume")
         devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+        interface = devices.Activate(
+            IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
         volume = cast(interface, POINTER(IAudioEndpointVolume))
         print("volume.GetMute(): %s" % volume.GetMute())
         vol = volume.GetMasterVolumeLevelScalar()
         print("volume.GetMasterVolume(): %s" % vol)
-    
+
         if incr:
             volume.SetMasterVolumeLevelScalar(vol+0.05, None)
         else:
             volume.SetMasterVolumeLevelScalar(vol-0.05, None)
         update_volume()
-        
+
+
 async def update_display():
-    #reset leds
+    # reset leds
     for led in leds:
         led.h = 0
         led.v = 0
@@ -540,7 +643,14 @@ async def update_display():
         if widget["type"] == "volume":
             await set_volume_bar(widget)
             asyncio.create_task(reset_leds(widget))
+        if widget["type"] == "progress":
+            await set_progress(widget)
+            asyncio.create_task(reset_leds(widget))
+        if widget["type"] == "image":
+            await set_image(widget)
+            asyncio.create_task(reset_leds(widget))
     vialrgb_send_leds(dev, leds)
+
 
 async def set_notification_led(widget):
     for led in leds:
@@ -548,6 +658,8 @@ async def set_notification_led(widget):
             led.v = int(widget["config"]["color"]["v"])
             led.h = int(widget["config"]["color"]["h"])
             led.s = int(widget["config"]["color"]["s"])
+
+
 async def reset_leds(widget):
     timeout = widget["config"].get("timeout")
     date_timeout = widget["config"].get("date_timeout")
@@ -559,6 +671,7 @@ async def reset_leds(widget):
                 del ledstack[idx]
         await update_display()
 
+
 async def set_volume_bar(widget):
     devices = AudioUtilities.GetSpeakers()
     interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
@@ -569,13 +682,40 @@ async def set_volume_bar(widget):
     for led in leds:
         led.v = 0
         if led.idx < int(ledslit):
-            led.v = 255 
-            led.h = 0 
-            led.s = 0 
+            led.v = 255
+            led.h = 0
+            led.s = 0
         if led.idx == int(ledslit):
-            led.v= int((ledslit%1)*255)
+            led.v = int((ledslit % 1)*255)
             led.s = 0
 
- 
+
+def update_led(index, color):
+    for idx, led in enumerate(leds):
+        if idx == index:
+            led.v = color.get("v")
+            led.h = color.get("h")
+            led.s = color.get("s")
+
+
+async def set_progress(widget):
+    print("progress widget")
+    indexes = widget.get("indexes")
+    ledslit = len(indexes) * widget.get("config").get("progress")
+    for idx, led in enumerate(indexes):
+        if idx < int(ledslit):
+            update_led(led, {"v": 255, "h": 0, "s": 0})
+        if idx == int(ledslit):
+            update_led(led, {"h": int((ledslit % 1)*255), "v": 255, "s": 255})
+    return
+
+
+async def set_image(widget):
+    print("image widget")
+    indexes = widget.get("indexes")
+    colors = widget.get("config").get("colors")
+    for idx, led in enumerate(indexes):
+        update_led(
+            led, {"v": colors[idx]["v"], "h": colors[idx]["h"], "s": colors[idx]["s"]})
 if __name__ == "__main__":
     main()
