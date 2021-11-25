@@ -1,6 +1,6 @@
 import fetch from "node-fetch"
 const progress = {
-    "id": "01FGEWZ07EXCHP0CBFHT0CD3ZG",
+    "id": "01FGEWZ57EXCHP0CBFHT0CD3ZG",
     "indexes": [
         3, 4, 5, 0, 1, 2
     ],
@@ -10,6 +10,8 @@ const progress = {
     },
     "type": "progress"
 }
+const start = new Date()
+
 const init = async () => {
     await fetch("http://localhost:8081/add_widget", {
         method: "post",
@@ -18,6 +20,7 @@ const init = async () => {
             { ...progress }
         )
     })
+
 }
 const updateProgress = async () => {
     const data = await fetch("http://localhost:8081/widget", {
@@ -31,12 +34,10 @@ const updateProgress = async () => {
 init()
 
 setInterval(() => {
-    if (progress.config.progress <= 1) {
-        const now = new Date()
-        const percent_of_day = now.getHours() / 24 + now.getMinutes() / 24 / 60 + now.getSeconds() / 25 / 60 / 60
-        console.log(percent_of_day)
-        progress.config.progress = percent_of_day
-        updateProgress()
+    const now = new Date()
+    const duration = 3
+    const value = (((now - start)/1000)%duration)/duration
+        progress.config.progress = value
+         updateProgress()
 
-    }
-}, 15000)
+}, 20)

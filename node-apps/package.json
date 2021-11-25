@@ -1,11 +1,14 @@
 {
-    "name": "update-progress",
+    "name": "NotificationLEDApps",
     "version": "1.0.0",
-    "description": "A simple websocket server for collaboration.",
-    "main": "updater.js",
+    "description": "Apps to update LED's on rgb macropads",
+    "main": "clock.js",
+    "type": "module",
     "scripts": {
-        "clock": "nodemon ./node_modules/@babel/node/bin/babel-node.js updater.js",
-        "timer": "nodemon ./node_modules/@babel/node/bin/babel-node.js pomodoro.js"
+        "clock": "node clock.js",
+        "timer": "node pomodoro.js",
+        "demo": "node demoProgress.js",
+        "clockDev": "nodemon ./node_modules/@babel/node/bin/babel-node.js clock.js"
     },
     "babel": {
         "presets": [
@@ -30,6 +33,7 @@
         "cors": "^2.8.5",
         "dotenv": "^8.2.0",
         "express": "^4.17.1",
+        "node-cleanup": "^2.1.2",
         "nodemon": "^2.0.5",
         "ulid": "^2.3.0"
     }
