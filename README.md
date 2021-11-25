@@ -153,19 +153,18 @@ this can define multiple LEDs in separate colors
       0,5
     ],
     "config": {
-      "timeout": 31,
-     "colors": [
-			 {
-				 "h": 255,
-				 "s": 255,
-				 "v": 255
-			 }, {
-				 "h": 182,
-				 "s": 255,
-				 "v": 255
-			 }
-			 
-		 ]
+        "timeout": 31,
+        "colors": [
+            {
+                "h": 255,
+                "s": 255,
+                "v": 255
+            }, {
+                "h": 182,
+                "s": 255,
+                "v": 255
+            }
+        ]
     },
     "type": "image"
   }
