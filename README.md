@@ -1,5 +1,7 @@
 # Keyboard Led Control
 
+I do talk more about this server in the video abuot connecting it to streamer bot for twitch notifications here https://www.youtube.com/watch?v=x9fZ-6AX4nM
+
 run the server with
 ```bash
 python server.py
